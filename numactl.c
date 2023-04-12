@@ -37,6 +37,7 @@ int exitcode;
 static struct option opts[] = {
 	{"all", 0, 0, 'a'},
 	{"interleave", 1, 0, 'i' },
+	{"weighted-interleave", 1, 0, 'w' },
 	{"preferred", 1, 0, 'p' },
 	{"preferred-many", 1, 0, 'P' },
 	{"cpubind", 1, 0, 'c' },
@@ -66,8 +67,9 @@ static struct option opts[] = {
 static void usage(void)
 {
 	fprintf(stderr,
-		"usage: numactl [--all | -a] [--balancing | -b] [--interleave= | -i <nodes>]\n"
-		"		[--preferred= | -p <node>] [--preferred-many= | -P <nodes>]\n"
+		"usage: numactl [--all | -a] [--balancing | -b]\n"
+		"               [--interleave= | -i <nodes>] [--weighted-interleave | -w <weight>]\n"
+		"               [--preferred= | -p <node>] [--preferred-many= | -P <nodes>]\n"
 		"               [--physcpubind= | -C <cpus>] [--cpunodebind= | -N <nodes>]\n"
 		"               [--membind= | -m <nodes>] [--localalloc | -l] command args ...\n"
 		"               [--localalloc | -l] command args ...\n"
@@ -95,6 +97,9 @@ static void usage(void)
 		"use --cpunodebind or --physcpubind instead\n"
 		"use --balancing | -b to enable Linux kernel NUMA balancing\n"
 		"for the process if it is supported by kernel\n"
+		"<weight> can be either:\n"
+		"  a string \"global\"\n"
+		"  a comma delimited list of node weight represented in node_id*weight format\n"
 		"<length> can have g (GB), m (MB) or k (KB) suffixes\n");
 	exit(1);
 }
@@ -421,11 +426,24 @@ static struct bitmask *numactl_parse_nodestring(char *s, int flag)
 		return numa_parse_nodestring(s);
 }
 
+/* parse s and set weights, mask */
+static int numactl_parse_weightstring(char *s, unsigned char *weights,
+				      unsigned int weight_count, struct bitmask *mask)
+{
+	memset(weights, 0, sizeof(unsigned int) * weight_count);
+	numa_bitmask_clearall(mask);
+
+	return numa_parse_weightstring(s, weights, weight_count, mask);
+}
+
 int main(int ac, char **av)
 {
 	int c;
 	char *end;
 	char shortopts[array_len(opts)*2 + 1];
+	unsigned char* weights = NULL;
+	unsigned int weight_count = 0;
+
 	struct bitmask *mask = NULL;
 	int did_cpubind = 0;
 	int did_strict = 0;
@@ -447,6 +465,30 @@ int main(int ac, char **av)
 		case 'b': /* --balancing  */
 			nopolicy();
 			numa_balancing = 1;
+			break;
+		case 'w': /* --weighted-interleave */
+			if (!numa_has_weighted_interleave())
+				complain("weighted-interleave requested without kernel support");
+			setpolicy(MPOL_WEIGHTED_INTERLEAVE);
+			mask = numa_allocate_nodemask();
+			if (!strcmp(optarg, "global")) {
+				if (shmfd >= 0)
+					numa_weighted_interleave_memory(shmptr, shmlen, mask);
+				else
+					numa_set_weighted_interleave(mask, 0, NULL);
+			}
+			else {
+				weight_count = numa_max_node() + 1;
+				weights = (unsigned char*)malloc(sizeof(unsigned char) * weight_count);
+				if (numactl_parse_weightstring(optarg, weights, weight_count, mask) < 0) {
+					free(weights);
+					usage_msg("--weighted-interleave input format error");
+					exit(0);
+				}
+				numa_set_weighted_interleave(mask, 0, weights);
+				free(weights);
+			}
+			checkerror("setting weighted-interleave");
 			break;
 		case 'i': /* --interleave */
 			checknuma();
