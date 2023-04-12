@@ -81,6 +81,7 @@ static int nodemask_sz = 0;
 static int cpumask_sz = 0;
 
 static int has_preferred_many = 0;
+static int has_weighted_interleave = 0;
 
 int numa_exit_on_error = 0;
 int numa_exit_on_warn = 0;
@@ -306,6 +307,12 @@ static void setpol(int policy, struct bitmask *bmp)
 {
 	if (set_mempolicy(policy, bmp->maskp, bmp->size + 1) < 0)
 		numa_error("set_mempolicy");
+}
+
+static void setpol2(struct mpol_args *args)
+{
+	if (set_mempolicy2(args, sizeof(args), 0) < 0)
+		numa_error("set_mempolicy2");
 }
 
 static void getpol(int *oldpolicy, struct bitmask *bmp)
@@ -619,6 +626,11 @@ set_kernel_abi()
 		/* reset the old memory policy */
 		setpol(oldp, bmp);
 	}
+	if (set_mempolicy(MPOL_WEIGHTED_INTERLEAVE, tmp->maskp, tmp->size) == 0) {
+		has_weighted_interleave++;
+		/* reset the old memory policy */
+		setpol(oldp, bmp);
+	}
 
 out:
 	numa_bitmask_free(tmp);
@@ -864,6 +876,12 @@ numa_interleave_memory_v2(void *mem, size_t size, struct bitmask *bmp)
 	dombind(mem, size, MPOL_INTERLEAVE, bmp);
 }
 
+void
+numa_weighted_interleave_memory(void *mem, size_t size, struct bitmask *bmp)
+{
+	dombind(mem, size, MPOL_WEIGHTED_INTERLEAVE, bmp);
+}
+
 void numa_tonode_memory(void *mem, size_t size, int node)
 {
 	struct bitmask *nodes;
@@ -1003,6 +1021,28 @@ numa_set_interleave_mask_v2(struct bitmask *bmp)
 		setpol(MPOL_DEFAULT, bmp);
 	else
 		setpol(MPOL_INTERLEAVE, bmp);
+}
+
+int numa_has_weighted_interleave(void)
+{
+	return has_weighted_interleave;
+}
+
+void
+numa_set_weighted_interleave(struct bitmask *bitmask, int flags,
+			     const unsigned char* weights)
+{
+	struct mpol_args args;
+	
+	args.mode = MPOL_WEIGHTED_INTERLEAVE;
+	args.mode_flags = flags;
+	args.home_node = -1;
+	args.pol_nodes = *(bitmask->maskp);
+	args.il_weights = (unsigned long)weights;
+	args.pol_maxnodes = bitmask->size + 1;
+	args.policy_node = 0;
+
+	setpol2(&args);
 }
 
 SYMVER("numa_get_interleave_mask_v1", "numa_get_interleave_mask@libnuma_1.1")
@@ -1929,6 +1969,75 @@ static unsigned long get_nr(const char *s, char **end, struct bitmask *bmp, int 
 		if (numa_bitmask_isbitset(bmp, i))
 			nr--;
 	return i-1;
+}
+
+/*
+ * return 0 is s is a valid digit, -1 on error
+ */
+static int is_a_valid_digit(const char *s)
+{
+	int i;
+	if (!s || strlen(s) <= 0)
+		return -1;
+
+	for (i = 0; i < strlen(s); i++) {
+		if (!isdigit(s[i]))
+			return -1;
+	}
+
+	return 0;
+}
+
+/*
+ * numa_parse_weightstring() is called to parse weight information from
+ * the string s for this task.
+ *
+ * return 0 on success, -1 on fail
+ */
+int numa_parse_weightstring(const char *s, unsigned char *weights, const unsigned int weight_count,
+			    struct bitmask *mask)
+{
+	char *ptr_comma = NULL;
+	char *ptr_asterisk = NULL;
+	char *s_dup;
+	char *tmp;
+	int node, weight;
+	int format_error = 0;
+
+	s_dup = strdup(s);
+	if (!s_dup) {
+		printf("not enough memory, strdup failed\n");
+		exit(1);
+	}
+	tmp = s_dup;
+
+	while((ptr_comma = strsep(&tmp, ","))) {
+		ptr_asterisk = strsep(&ptr_comma, "*");
+		if (is_a_valid_digit(ptr_asterisk) < 0) {
+			format_error = 1;
+			break;
+		}
+		node = atoi(ptr_asterisk);
+		ptr_asterisk = strsep(&ptr_comma, "*");
+		if (is_a_valid_digit(ptr_asterisk) < 0) {
+			format_error = 1;
+			break;
+		}
+		weight = atoi(ptr_asterisk);
+
+		if (node >= weight_count || weight < 0 || ptr_comma) {
+			format_error = 1;
+			break;
+		}
+		weights[node] = weight;
+		numa_bitmask_setbit(mask, node);
+	}
+
+	free(s_dup);
+	if (format_error)
+		return -1;
+	else
+		return 0;
 }
 
 /*
