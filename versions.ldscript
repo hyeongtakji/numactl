@@ -161,6 +161,13 @@ libnuma_1.6{
     numa_has_preferred_many;
     numa_set_preferred_many;
     numa_preferred_many;
+    set_mempolicy2;
+    get_mempolicy2;
+    mbind2;
+    numa_has_weighted_interleave;
+    numa_weighted_interleave_memory;
+    numa_set_weighted_interleave;
+    numa_parse_weightstring;
   local:
     *;
 } libnuma_1.5;
