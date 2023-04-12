@@ -29,6 +29,8 @@ numactl \- Control NUMA policy for processes or shared memory
 ] [
 .B \-\-interleave nodes
 ] [
+.B \-\-weighted-interleave weight
+] [
 .B \-\-preferred node 
 ] [
 .B \-\-preferred-many nodes
@@ -110,6 +112,10 @@ pci:[seg:]bus:dev[:func]|The node of a PCI device.
 Note that block resolves the kernel block device names only
 for udev names in /dev use
 .I file:
+.PP
+.I weight
+is a comma delimited list of node and its weight
+value, represented in node_id*weight format (e.g., "N*a,M*b").
 .TP
 Policy settings are:
 .TP
@@ -124,6 +130,20 @@ on
 When memory cannot be allocated on the current interleave target fall back
 to other nodes.
 Multiple nodes may be specified on --interleave, --membind and --cpunodebind.
+.TP
+.B \-\-weighted-interleave=weight, \-w weight
+Set a weighted memory interleave policy. Memory will be allocated according to the
+ratio represented in
+.I weight.
+When
+.I weight
+is in a format of <nodes>, weight will be applied from sysfs. Read
+.B FILES
+section for more information. Otherwise, users can set their own interleaving
+weight as described above. When memory cannot be allocated on the current
+interleave target fall back to other nodes.
+Multiple nodes and their weights can be specified at
+.I weight.
 .TP
 .B \-\-membind=nodes, \-m nodes
 Only allocate memory from nodes.  Allocation will fail when there
@@ -203,6 +223,7 @@ The specification must at least include either of
 to specify the shared memory segment or file and a memory policy like described 
 above (
 .I \-\-interleave, 
+.I \-\-weighted-interleave,
 .I \-\-localalloc, 
 .I \-\-preferred,
 .I \-\-preferred-many,
@@ -315,6 +336,13 @@ numactl --interleave=all --shm /tmp/shmkey
 Interleave all of the sysv shared memory region specified by
 /tmp/shmkey over all nodes.
 
+numactl --weighted-interleave=0,1 process Run process with its memory using
+weighted interleaving between node0 and node1, and the weight will be applied
+from sysfs.
+
+numactl --weighted-interleave="0*2,1*1" process Run process with its memory using
+node0 and node1 with 2:1 ratio.
+
 Place a tmpfs file on 2 nodes:
   numactl --membind=2 dd if=/dev/zero of=/dev/shm/A bs=1M count=1024
   numactl --membind=3 dd if=/dev/zero of=/dev/shm/A seek=1024 bs=1M count=1024
@@ -354,6 +382,9 @@ for details.
 
 .I /sys/devices/system/node/node*/numastat
 for NUMA memory hit statistics.
+
+.I /sys/kernel/mm/mempolicy/weighted_interleave/node*
+to set interleaving weights.
 
 .SH COPYRIGHT
 Copyright 2002,2004 Andi Kleen, SuSE Labs.
