@@ -27,8 +27,10 @@
 
 #if !defined(__NR_mbind) || !defined(__NR_set_mempolicy) || \
     !defined(__NR_get_mempolicy) || !defined(__NR_migrate_pages) || \
-    !defined(__NR_move_pages)
+    !defined(__NR_move_pages) || !defined(__NR_set_mempolicy2) || \
+    !defined(__NR_get_mempolicy2) || !defined(__NR_mbind2)
 
+/* TODO: arch other than x86 */
 #if defined(__x86_64__)
 
 #define __NR_sched_setaffinity    203
@@ -41,6 +43,9 @@
 #define __NR_get_mempolicy 239
 #define __NR_migrate_pages 256
 #define __NR_move_pages 279
+#define __NR_set_mempolicy2 457
+#define __NR_get_mempolicy2 458
+#define __NR_mbind2 459
 
 #elif defined(__ia64__)
 #define __NR_sched_setaffinity    1231
@@ -247,6 +252,24 @@ long WEAK move_pages(int pid, unsigned long count,
 	void **pages, const int *nodes, int *status, int flags)
 {
 	return syscall(__NR_move_pages, pid, count, pages, nodes, status, flags);
+}
+
+long WEAK set_mempolicy2(struct mpol_args *args, size_t size,
+			 unsigned long flags)
+{
+	return syscall(__NR_set_mempolicy2, args, size, flags);
+}
+
+long WEAK get_mempolicy2(struct mpol_args *args, size_t size,
+			 unsigned long addr, unsigned long flags)
+{
+	return syscall(__NR_get_mempolicy2, args, size, addr, flags);
+}
+
+long WEAK mbind2(unsigned long addr, unsigned long len, struct mpol_args *args,
+		 size_t size, unsigned long flags)
+{
+	return syscall(__NR_mbind2, addr, len, args, size, flags);
 }
 
 /* SLES8 glibc doesn't define those */
