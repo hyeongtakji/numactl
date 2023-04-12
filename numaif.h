@@ -7,6 +7,16 @@ extern "C" {
 
 /* Kernel interface for NUMA API */
 
+struct mpol_args {
+	unsigned short mode;
+	unsigned short mode_flags;
+	int home_node;
+	unsigned long pol_nodes;
+	unsigned long il_weights;
+	unsigned long pol_maxnodes;
+	int policy_node;
+};
+
 /* System calls */
 extern long get_mempolicy(int *mode, unsigned long *nmask,
 			unsigned long maxnode, void *addr, unsigned flags);
@@ -21,6 +31,15 @@ extern long migrate_pages(int pid, unsigned long maxnode,
 extern long move_pages(int pid, unsigned long count,
 		void **pages, const int *nodes, int *status, int flags);
 
+extern long set_mempolicy2(struct mpol_args *args, size_t size,
+			   unsigned long flags);
+
+extern long get_mempolicy2(struct mpol_args *args, size_t size,
+			   unsigned long addr, unsigned long flags);
+
+extern long mbind2(unsigned long addr, unsigned long len,
+		   struct mpol_args *args, size_t size, unsigned long flags);
+
 /* Policies */
 #define MPOL_DEFAULT     0
 #define MPOL_PREFERRED   1
@@ -28,7 +47,8 @@ extern long move_pages(int pid, unsigned long count,
 #define MPOL_INTERLEAVE  3
 #define MPOL_LOCAL       4
 #define MPOL_PREFERRED_MANY   5
-#define MPOL_MAX         6
+#define MPOL_WEIGHTED_INTERLEAVE 6
+#define MPOL_MAX         7
 
 /* Flags for set_mempolicy, specified in mode */
 #define MPOL_F_NUMA_BALANCING	(1 << 13) /* Optimize with NUMA balancing if possible */

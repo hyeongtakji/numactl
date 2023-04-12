@@ -81,6 +81,7 @@ long memsize(char *s)
 	return length;
 }
 
+/* TODO: MPOL_WEIGHTED_INTERLEAVE */
 static struct policy {
 	char *name;
 	int policy;
