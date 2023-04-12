@@ -27,7 +27,8 @@
 
 #if !defined(__NR_mbind) || !defined(__NR_set_mempolicy) || \
     !defined(__NR_get_mempolicy) || !defined(__NR_migrate_pages) || \
-    !defined(__NR_move_pages)
+    !defined(__NR_move_pages) || !defined(__NR_set_mempolicy_node_weight) || \
+    !defined(__NR_mrange_node_weight)
 
 #if defined(__x86_64__)
 
@@ -41,6 +42,8 @@
 #define __NR_get_mempolicy 239
 #define __NR_migrate_pages 256
 #define __NR_move_pages 279
+#define __NR_set_mempolicy_node_weight 451
+#define __NR_mrange_node_weight 452
 
 #elif defined(__ia64__)
 #define __NR_sched_setaffinity    1231
@@ -247,6 +250,22 @@ long WEAK move_pages(int pid, unsigned long count,
 	void **pages, const int *nodes, int *status, int flags)
 {
 	return syscall(__NR_move_pages, pid, count, pages, nodes, status, flags);
+}
+
+long WEAK set_mempolicy_node_weight(const unsigned int *weights,
+				    unsigned int weight_count,
+				    unsigned long flags)
+{
+	return syscall(__NR_set_mempolicy_node_weight, weights,
+			weight_count, flags);
+}
+
+long WEAK mrange_node_weight(void* start, unsigned long len,
+			     const unsigned int* weights,
+			     unsigned int weight_count, unsigned long flags)
+{
+	return syscall(__NR_mrange_node_weight, (long)start, len,
+			weights, weight_count, flags);
 }
 
 /* SLES8 glibc doesn't define those */

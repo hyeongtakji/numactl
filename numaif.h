@@ -21,6 +21,13 @@ extern long migrate_pages(int pid, unsigned long maxnode,
 extern long move_pages(int pid, unsigned long count,
 		void **pages, const int *nodes, int *status, int flags);
 
+extern long set_mempolicy_node_weight(const unsigned int *weights,
+				      unsigned int weight_count,
+				      unsigned long flags);
+extern long mrange_node_weight(void* start, unsigned long len,
+			       const unsigned int* weights,
+			       unsigned int weight_count, unsigned long flags);
+
 /* Policies */
 #define MPOL_DEFAULT     0
 #define MPOL_PREFERRED   1
@@ -28,10 +35,12 @@ extern long move_pages(int pid, unsigned long count,
 #define MPOL_INTERLEAVE  3
 #define MPOL_LOCAL       4
 #define MPOL_PREFERRED_MANY   5
-#define MPOL_MAX         6
+#define MPOL_INTERLEAVE_WEIGHT 6
+#define MPOL_MAX         7
 
 /* Flags for set_mempolicy, specified in mode */
 #define MPOL_F_NUMA_BALANCING	(1 << 13) /* Optimize with NUMA balancing if possible */
+#define MPOL_F_AUTO_WEIGHT  (1 << 12)
 
 /* Flags for get_mem_policy */
 #define MPOL_F_NODE    (1<<0)   /* return next il node or node of address */

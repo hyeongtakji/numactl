@@ -172,6 +172,15 @@ void numa_bind(struct bitmask *nodes);
 /* Set the NUMA node interleaving mask. 0 to turn off interleaving */
 void numa_set_interleave_mask(struct bitmask *nodemask);
 
+/* Returns whether or not the platform supports MPOL_INTERLEAVE_WEIGHT */
+int numa_has_interleave_weight(void);
+
+/* Set the NUMA node interleave-weight mask. 0 to turn off interleaving */
+void numa_set_interleave_weight_mask(struct bitmask *bitmask, int flags);
+
+/* Set the NUMA node weights mask. */
+void numa_set_node_weight(const unsigned int* weights, const unsigned int maxnode);
+
 /* Return the current interleaving mask */
 struct bitmask *numa_get_interleave_mask(void);
 
@@ -236,6 +245,10 @@ void numa_free(void *mem, size_t size);
 
 /* Interleave a memory area. */
 void numa_interleave_memory(void *mem, size_t size, struct bitmask *mask);
+
+/* Interleave-weight a memory area. */
+void numa_interleave_weight_memory(void *mem, size_t size,
+				   struct bitmask *mask);
 
 /* Allocate a memory area on a specific node. */
 void numa_tonode_memory(void *start, size_t size, int node);
@@ -340,6 +353,10 @@ struct bitmask *numa_parse_cpustring(const char *);
 /* Convert an ascii list of cpu to a bitmask without current taskset
  * dependency */
 struct bitmask *numa_parse_cpustring_all(const char *);
+
+/* Convert ascii list of nodes to weights */
+int numa_parse_weightstring(const char *s, unsigned int *weights, const unsigned int weight_count,
+							struct bitmask *mask);
 
 /*
  * The following functions are for source code compatibility
